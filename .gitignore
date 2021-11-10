@@ -1,0 +1,10 @@
+.DS_Store
+*Template*
+*.log*
+*.lst
+*.lxi
+*.xlsx
+*.pdf
+Reading/
+Assignment2/
+test*
