@@ -14,7 +14,7 @@ $call csv2gdx csv/HeatConsumption.csv output=gdx/par_HeatCons_A80.gdx           
 $call csv2gdx csv/HeatConsumption.csv output=gdx/par_HeatCons_A180.gdx          id=HconA180 colCount=9 index=4 values=5 trace=0 fieldSep=SemiColon decimalSep=Comma
 
 **spot price data
-$call csv2gdx csv/ElectSpotprices.csv output=gdx/par_ElectSpot.gdx              id=Espotprice colCount=5 index=4 values=3 trace=0 useHeader=y fieldSep=SemiColon decimalSep=Comma
+$call csv2gdx csv/ElectSpotprices.csv output=gdx/par_ElectSpot.gdx              id=Espotprice colCount=5 index=4 values=5 trace=0 useHeader=y fieldSep=SemiColon decimalSep=Comma
 
 
 *-----------------------------------------------------------------------------------------
@@ -30,15 +30,15 @@ $gdxIn
 /
 ;
 
-*Set tt(tt_0) timesteps without tt0
-*/
-*$gdxIn gdx/timesteps.gdx
-*$load tt = Dim1
-*$gdxIn
-*/
-*;
+Set tt(tt_0) timesteps without tt0
+/
+$gdxIn gdx/timesteps.gdx
+$load tt = Dim1
+$gdxIn
+/
+;
 
-Set tt /tt1, tt2, tt3/;
+*Set tt /tt10, tt12, tt13/;
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -135,6 +135,8 @@ Binary Variable
         u
         y;
         
+
+        
         
 
 *-----------------------------------------------------------------------------------------
@@ -144,11 +146,11 @@ Binary Variable
 
 equation costs;
 equation elecdemand(tt) summaraizes entire electricity (kWh) demand;
-equation heatdemand summaraizes entire heat (kWh) demand;
+equation heatdemand(tt) summaraizes entire heat (kWh) demand;
 
 
 
-costs.. Z =e= sum(tt, (spot_price(tt) * x_el_grid(tt)) + (om_boiler * x_th_boil(tt)));
+costs.. Z =e= sum(tt, (( (0.001*spot_price(tt)) + taxes_electCons ) * x_el_grid(tt)) + ( (om_boiler + taxes_gasCons + cost_gas) * x_th_boil(tt)));
 elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);
 heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
 
@@ -156,11 +158,12 @@ heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
 
 
 
-*Model energy /all/ ;
-Model energy /costs, elecdemand/ ;
+Model energy /all/;
+*Model energy /costs, elecdemand/ ;
 option mip=cplex;
 *solve energy using mip maximizing Z;
 solve energy using mip minimizing Z;
 *Display f.l, x_el_grid.l, x_th_boil.l;
-display z.l x_el_grid.l, elect_load_P4_3_A80, spot_price;
+display z.l;
+* x_el_grid.l, elect_load_P4_3_A80, spot_price;
 
