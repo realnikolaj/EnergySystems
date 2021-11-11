@@ -30,13 +30,15 @@ $gdxIn
 /
 ;
 
-Set tt(tt_0) timesteps without tt0
-/
-$gdxIn gdx/timesteps.gdx
-$load tt = Dim1
-$gdxIn
-/
-;
+*Set tt(tt_0) timesteps without tt0
+*/
+*$gdxIn gdx/timesteps.gdx
+*$load tt = Dim1
+*$gdxIn
+*/
+*;
+
+Set tt /tt1, tt2, tt3/;
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -109,6 +111,7 @@ Scalar
          num_weeks       number of weeks per year considered /9/
 
          cost_gas        cost of natural gas [� * (kWh)^(-1)] /0.09/
+         om_boiler       operation and maintainance of heat boiler [� * (kWh)^(-1)] /0.0011/
 
          taxes_electCons     taxes electricity consumption [� * (kWh)^(-1)] /0.12/
          taxes_electHeat     taxes electricity for heating [� * (kWh)^(-1)] /0.036/
@@ -127,19 +130,37 @@ Variable
 Positive Variable
          x_el_grid(tt) electricity from grid [kWh_el]
          x_th_boil(tt) output of heat boiler [kWh_th];
+         
+Binary Variable
+        u
+        y;
+        
+        
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Equations declaration
 *-----------------------------------------------------------------------------------------
 
+equation costs;
+equation elecdemand(tt) summaraizes entire electricity (kWh) demand;
+equation heatdemand summaraizes entire heat (kWh) demand;
+
+
+
+costs.. Z =e= sum(tt, (spot_price(tt) * x_el_grid(tt)) + (om_boiler * x_th_boil(tt)));
+elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);
+heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
+
 
 
 
 
 *Model energy /all/ ;
-*option mip=cplex;
+Model energy /costs, elecdemand/ ;
+option mip=cplex;
 *solve energy using mip maximizing Z;
+solve energy using mip minimizing Z;
 *Display f.l, x_el_grid.l, x_th_boil.l;
-display spot_price;
+display z.l x_el_grid.l, elect_load_P4_3_A80, spot_price;
 
