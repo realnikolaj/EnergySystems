@@ -1,6 +1,6 @@
 *sets i.e time with t0 (tt_0) and time without t0 (tt)
-$call csv2gdx csv/Timesteps.csv output=gdx/timesteps.gdx                        id=time autoCol=col colCount=4 index=3 values=3 trace=0 fieldSep=SemiColon decimalSep=Comma
-$call csv2gdx csv/Timesteps.csv output=gdx/timesteps_0.gdx                      id=time autoCol=col colCount=4 index=4 values=4 trace=0 fieldSep=SemiColon decimalSep=Comma
+$call csv2gdx csv/Timesteps.csv output=gdx/timesteps.gdx                        id=time autoCol=col colCount=1 index=1 values=1 trace=0 fieldSep=SemiColon decimalSep=Comma
+*$call csv2gdx csv/Timesteps.csv output=gdx/timesteps_0.gdx                      id=time autoCol=col colCount=4 index=4 values=4 trace=0 fieldSep=SemiColon decimalSep=Comma
 
 
 **electricity consumption data (in DKK)
@@ -22,21 +22,21 @@ $call csv2gdx csv/ElectSpotprices.csv output=gdx/par_ElectSpot.gdx              
 * Set declaration and definition
 *-----------------------------------------------------------------------------------------
 
-Set tt_0 Timesteps with tt0
-/
-$gdxIn gdx/timesteps_0.gdx
-$load tt_0 = Dim1
-$gdxIn
-/
-;
-
-Set tt(tt_0) timesteps without tt0
+Set tt Timesteps with tt0
 /
 $gdxIn gdx/timesteps.gdx
 $load tt = Dim1
 $gdxIn
 /
 ;
+
+*Set tt(tt_0) timesteps without tt0
+*/
+*$gdxIn gdx/timesteps.gdx
+*$load tt = Dim1
+*$gdxIn
+*/
+*;
 
 *Set tt /tt10, tt12, tt13/;
 
@@ -164,6 +164,6 @@ option mip=cplex;
 *solve energy using mip maximizing Z;
 solve energy using mip minimizing Z;
 *Display f.l, x_el_grid.l, x_th_boil.l;
-display z.l;
+display z.l, spot_price;
 * x_el_grid.l, elect_load_P4_3_A80, spot_price;
 
