@@ -30,16 +30,20 @@ $gdxIn
 /
 ;
 
-*Set tt(tt_0) timesteps without tt0
-*/
-*$gdxIn gdx/timesteps.gdx
-*$load tt = Dim1
-*$gdxIn
-*/
-*;
+Set i Type of Supply
+/Elect, Elect-heat, Gas-boiler, Photovoltaic, Heat-pump/;
 
-*Set tt /tt10, tt12, tt13/;
+Set j Type of storage
+/Battery, Heat-storage/;
 
+Set ci Type of costs for generation
+/cost, om, taxes, fees/;
+
+Set ji Type of costs for storage
+/om/;
+
+
+*Set k Effeciencies;
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Parameter declaration and definition
@@ -112,11 +116,23 @@ Scalar
 
          cost_gas        cost of natural gas [� * (kWh)^(-1)] /0.09/
          om_boiler       operation and maintainance of heat boiler [� * (kWh)^(-1)] /0.0011/
+         om_pump         operation and maintainance of gas boiler [� * (kWh)^(-1)]  /0.0027/
 
          taxes_electCons     taxes electricity consumption [� * (kWh)^(-1)] /0.12/
          taxes_electHeat     taxes electricity for heating [� * (kWh)^(-1)] /0.036/
          taxes_gasCons       taxes gas consumption [� * (kWh)^(-1)] /0.04/
          fees_electNetwork   network costs for electricity consumption [� * (kWh)^(-1)] /0/;
+
+PARAMETERS  sp(tt)  Electricity Spot prices in per kWh not per MWh;
+sp(tt) = spot_price(tt) / 1000;
+
+TABLE   a(ci,i)    
+                    Elect            Elect-heat      Gas-boiler     Photovoltaic      Heat-pump     
+cost                0                0               0.09           0                 0
+om                  0                0               0.0011         0                 0.0027
+taxes               0.12             0.036           0.04           0                 0
+fees                0                0               0              0                 0;
+
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -129,15 +145,12 @@ Variable
 
 Positive Variable
          x_el_grid(tt) electricity from grid [kWh_el]
-         x_th_boil(tt) output of heat boiler [kWh_th];
+         x_th_boil(tt) output of heat boiler [kWh_th]
+         x_gas_grid(tt) gas from grid [kWh_gas];
          
 Binary Variable
         u
         y;
-        
-
-        
-        
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -150,7 +163,7 @@ equation heatdemand(tt) summaraizes entire heat (kWh) demand;
 
 
 
-costs.. Z =e= sum(tt, (( (0.001*spot_price(tt)) + taxes_electCons ) * x_el_grid(tt)) + ( (om_boiler + taxes_gasCons + cost_gas) * x_th_boil(tt)));
+costs.. Z =e= sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt) + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
 elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);
 heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
 
