@@ -145,7 +145,7 @@ Variable
 
 Positive Variable
          x_el_grid(tt) electricity from grid [kWh_el]
-         x_th_boil(tt) output of heat boiler [kWh_th]
+         x_th_boil(tt) output of heat boiler i.e gas-boiler [kWh_th]
          x_gas_grid(tt) gas from grid [kWh_gas];
          
 Binary Variable
@@ -163,7 +163,7 @@ equation heatdemand(tt) summaraizes entire heat (kWh) demand;
 
 
 
-costs.. Z =e= sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt) + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
+costs.. Z =e= sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt) + (a(ci, 'Gas-boiler') + sp(tt)) * x_th_boil(tt));
 elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);
 heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
 
