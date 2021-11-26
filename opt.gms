@@ -16,6 +16,8 @@ $call csv2gdx csv/HeatConsumption.csv output=gdx/par_HeatCons_A180.gdx          
 **spot price data
 $call csv2gdx csv/ElectSpotprices.csv output=gdx/par_ElectSpot.gdx              id=Espotprice colCount=5 index=4 values=5 trace=0 useHeader=y fieldSep=SemiColon decimalSep=Comma
 
+**solar radiation data
+$call csv2gdx csv/SolarRadiation.csv output=gdx/par_SolarRadiation.gdx              id=SolarRadiation colCount=2 index=1 values=2 trace=0 useHeader=n fieldSep=SemiColon decimalSep=Comma
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -42,8 +44,9 @@ SETS i Type of Supply
 
 ALIAS(i,j);
 SETS isub(j) Defines subset of actual tech in use for scenario
-/Elect, Elect-heat/;
-*/Gas-boiler, Photovoltaic, Heat-pump, Battery, Heat-storage/;
+/Elect, Elect-heat, Photovoltaic/;
+*, Photovoltaic /;
+*/Gas-boiler,  Heat-pump, Battery, Heat-storage/;
 
 
 SETS ci Type of costs for generation
@@ -114,6 +117,15 @@ $gdxIn
 /
 ;
 
+PARAMETER solar_rad(tt) solar radiation per timestep [� * (kWh_el)^(-1)]
+/
+$gdxIn gdx/par_SolarRadiation.gdx
+$load solar_rad = SolarRadiation
+$gdxIn
+/
+;
+
+*display tt, solar_rad;
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Scalar declaration and definition
@@ -153,7 +165,7 @@ Battery 55
 Heat-storage 15/;
 
 
-PARAMETER cap_cost(i) Capitol cost in Euro per kWh per year
+PARAMETER cap_cost(i) Capitol cost in Euro per kW per year
 /Elect 0
 Elect-heat 0
 Gas-boiler 2.55
@@ -162,16 +174,17 @@ Heat-pump 56.08
 Battery 53.65
 Heat-storage 14.07/;
 
-PARAMETER  c(i)  Capital costs;
-c(i) = ( cap_cost(i) * kw(i) );
+PARAMETER  capitalCosts(i)  Capital costs;
+capitalCosts(i) = ( cap_cost(i) * kw(i) );
 
 
+*display c(i);
 
-PARAMETER capitalCosts(i) Calculates capital investment costs based on unit selection and respective sizes;
-capitalCosts(isub) = c(isub);
+*PARAMETER capitalCosts(i) Calculates capital investment costs based on unit selection and respective sizes;
+*capitalCosts(isub) = c(isub);
 
 
-DISPLAY capitalCosts
+*DISPLAY capitalCosts
 
 
 TABLE   a(ci,i)    
@@ -187,12 +200,15 @@ fees                0       0            0            0              0          
 * Variables declaration
 *-----------------------------------------------------------------------------------------
 
+*Binary Variable
+*        pv  binary decision variable for pv
+*        batt binary decision variable for battery storage
+*        eboil binary decision variable for electric boiler
+*        pump binary decision variable for heat pump
+*        thstor binary decision variable for thermal storage;
+        
 Binary Variable
-        pv binary decision variable for pv
-        batt binary decision variable for battery storage
-        eboil binary decision variable for electric boiler
-        pump binary decision variable for heat pump
-        thstor binary decision variable for thermal storage;
+        bi_tech(i);
 
 
 Variable
@@ -215,24 +231,39 @@ Positive Variable
 equation costs;
 equation elecdemand(tt) summaraizes entire electricity (kWh) demand;
 equation heatdemand(tt) summaraizes entire heat (kWh) demand;
+equation pvproduction(tt) Max pv production (kW);
 equation pvcapacity(tt) Max capacity of PV (kW);
-equation boilcapacity(tt) Max capacity of heat boiler (kW);
+*equation boilcapacity(tt) Max capacity of heat boiler (kW);
 
 
-
-costs.. Z =e= sum(isub, capitalCosts(isub))
+*costs.. Z =e= sum(isub,capitalCosts(isub)*bi_tech(isub))
+*              + sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt)
+*              + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
+costs.. Z =e= sum(isub,capitalCosts(isub)*bi_tech(isub))
               + sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt)
               + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
-              
-elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);
+
+*elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);             
+elecdemand(tt).. x_el_grid(tt) + x_el_pv(tt) =g= elect_load_P4_3_A80(tt);
 heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
+pvproduction(tt).. x_el_pv(tt) =l= solar_rad(tt)*bi_tech('Photovoltaic');
+pvcapacity(tt).. x_el_pv(tt) =l= kw('Photovoltaic')*bi_tech('Photovoltaic');
 
 
+******** Custom Edits ************
 
+*capitalCosts('Photovoltaic') = 1;
+*bi_tech.fx('Photovoltaic') = 1;
 
+******** 
+*bi_tech.fx('Elect') = 1;
+*bi_tech.fx('Elect-heat') = 1;
 
+******** Solver ***************
 Model energy /all/;
 option mip=cplex;
 solve energy using mip minimizing Z;
-display z.l;
+
+
+display Z.l,x_el_pv.l, x_el_grid.l, bi_tech.l ; 
 
