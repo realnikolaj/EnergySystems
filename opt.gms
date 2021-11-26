@@ -201,7 +201,9 @@ Variable
 Positive Variable
          x_el_grid(tt) electricity from grid [kWh_el]
          x_th_boil(tt) output of heat boiler [kWh_th]
-         x_el_pv(tt) output of heat PV [kWh_th]
+         x_el_pv(tt)   electircity from PV [kWh_el]
+         x_th_pump(tt) output of heat pump [kWh_th]
+         
          
 
         
@@ -213,6 +215,8 @@ Positive Variable
 equation costs;
 equation elecdemand(tt) summaraizes entire electricity (kWh) demand;
 equation heatdemand(tt) summaraizes entire heat (kWh) demand;
+equation pvcapacity(tt) Max capacity of PV (kW);
+equation boilcapacity(tt) Max capacity of heat boiler (kW);
 
 
 
