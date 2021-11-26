@@ -44,8 +44,8 @@ SETS i Type of Supply
 
 ALIAS(i,j);
 SETS isub(j) Defines subset of actual tech in use for scenario
-/Elect, Elect-heat, Photovoltaic/;
-*, Photovoltaic /;
+/Elect, Elect-heat,Gas-boiler,Photovoltaic,heat-pump/;
+*, Photovoltaic /;  Elect-heat
 */Gas-boiler,  Heat-pump, Battery, Heat-storage/;
 
 
@@ -178,15 +178,6 @@ PARAMETER  capitalCosts(i)  Capital costs;
 capitalCosts(i) = ( cap_cost(i) * kw(i) );
 
 
-*display c(i);
-
-*PARAMETER capitalCosts(i) Calculates capital investment costs based on unit selection and respective sizes;
-*capitalCosts(isub) = c(isub);
-
-
-*DISPLAY capitalCosts
-
-
 TABLE   a(ci,i)    
                     Elect   Elect-heat   Gas-boiler   Photovoltaic   Heat-pump   Battery   Heat-storage           
 cost                0       0            0.09         0              0           0         0
@@ -194,19 +185,14 @@ om                  0       0            0.0011       0              0.0027     
 taxes               0.12    0.036        0.04         0              0           0         0
 fees                0       0            0            0              0           0         0;
 
+Parameter
+         x_Results variable to display how much each technology is used over the 4 weeks [kWh];
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Variables declaration
 *-----------------------------------------------------------------------------------------
 
-*Binary Variable
-*        pv  binary decision variable for pv
-*        batt binary decision variable for battery storage
-*        eboil binary decision variable for electric boiler
-*        pump binary decision variable for heat pump
-*        thstor binary decision variable for thermal storage;
-        
 Binary Variable
         bi_tech(i);
 
@@ -214,15 +200,14 @@ Binary Variable
 Variable
          Z            energy purchase cost [� * (kWh)^(-1)];
 
+*Positive Variable
+*         x_el_grid(tt) electricity from grid [kWh_el]
+*         x_th_boil(tt) output of heat boiler [kWh_th]
+*         x_el_pv(tt)   electircity from PV [kWh_el]
+*         x_th_pump(tt) output of heat pump [kWh_th]
+         
 Positive Variable
-         x_el_grid(tt) electricity from grid [kWh_el]
-         x_th_boil(tt) output of heat boiler [kWh_th]
-         x_el_pv(tt)   electircity from PV [kWh_el]
-         x_th_pump(tt) output of heat pump [kWh_th]
-         
-         
-
-        
+         x(tt,i);        
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Equations declaration
@@ -234,36 +219,43 @@ equation heatdemand(tt) summaraizes entire heat (kWh) demand;
 equation pvproduction(tt) Max pv production (kW);
 equation pvcapacity(tt) Max capacity of PV (kW);
 *equation boilcapacity(tt) Max capacity of heat boiler (kW);
-
-
+equation heatpumpchoice(tt) force Elect-heat and 'Peatpump' as one choice;
+equation heatpumpchoice2 force Elect-heat and 'Peatpump' as one choice;
+****** using a(ci,isub) *************
 *costs.. Z =e= sum(isub,capitalCosts(isub)*bi_tech(isub))
-*              + sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt)
-*              + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
+*              + sum(tt, sp(tt)*x(tt,'Elect'))
+*              + sum((tt,ci), sum(isub,(a(ci,isub))*x(tt,isub)));
+        
+***** adding heat-pump **************      
 costs.. Z =e= sum(isub,capitalCosts(isub)*bi_tech(isub))
-              + sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt)
-              + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
+              + sum(tt, sp(tt)*(x(tt,'Elect')+x(tt,'Elect-heat')))
+              + sum((tt,ci), sum(isub,(a(ci,isub))*x(tt,isub)));
 
-*elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);             
-elecdemand(tt).. x_el_grid(tt) + x_el_pv(tt) =g= elect_load_P4_3_A80(tt);
-heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
-pvproduction(tt).. x_el_pv(tt) =l= solar_rad(tt)*bi_tech('Photovoltaic');
-pvcapacity(tt).. x_el_pv(tt) =l= kw('Photovoltaic')*bi_tech('Photovoltaic');
+elecdemand(tt).. x(tt,'Elect') + x(tt,'Photovoltaic') =g= elect_load_P4_3_A80(tt);
+heatdemand(tt).. x(tt,'Gas-boiler') + 2.9*x(tt,'Elect-heat')=g= heat_load_A80(tt);
+pvproduction(tt).. x(tt,'Photovoltaic') =l= solar_rad(tt)*bi_tech('Photovoltaic');
+pvcapacity(tt).. x(tt,'Photovoltaic') =l= kw('Photovoltaic')*bi_tech('Photovoltaic');
+heatpumpchoice(tt).. x(tt,'Elect-heat') =l= 1000000000*bi_tech('Heat-pump');
+heatpumpchoice2.. bi_tech('Elect-heat') =e= bi_tech('Heat-pump');
 
+* missing electric heat from pv panel.
+
+****** Grid electricity and Gas-boiler is always available *********
+bi_tech.fx('Elect') = 1;
+bi_tech.fx('Gas-boiler') = 1;
 
 ******** Custom Edits ************
 
-*capitalCosts('Photovoltaic') = 1;
-*bi_tech.fx('Photovoltaic') = 1;
-
-******** 
-*bi_tech.fx('Elect') = 1;
-*bi_tech.fx('Elect-heat') = 1;
+*capitalCosts('Heat-pump')= 0;
+*capitalCosts('Photovoltaic') =0;
+*bi_tech.fx('Photovoltaic') = 0;
+*bi_tech.fx('Elect-heat') = 0; bi_tech.fx('Heat-pump') = 0;
 
 ******** Solver ***************
 Model energy /all/;
 option mip=cplex;
 solve energy using mip minimizing Z;
 
+x_Results(isub) = sum(tt,x.l(tt,isub));
 
-display Z.l,x_el_pv.l, x_el_grid.l, bi_tech.l ; 
-
+display Z.l,x.l, bi_tech.l,x_Results;
