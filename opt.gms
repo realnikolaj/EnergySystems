@@ -21,6 +21,8 @@ $call csv2gdx csv/ElectSpotprices.csv output=gdx/par_ElectSpot.gdx              
 *-----------------------------------------------------------------------------------------
 * Set declaration and definition
 *-----------------------------------------------------------------------------------------
+
+
 SETS t timesteps full year
 /
 $gdxIn gdx/timestepsfull.gdx
@@ -49,14 +51,43 @@ SETS isub(j) Defines subset of actual tech in use for scenario
 SETS ci Type of costs for generation
 /cost, om, taxes, fees/;
 
-
-
+SETS SCEN different house types Scenarios
+/1A80, 1A180, 3A80, 3A180/;
 
 *Set k Effeciencies;
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Parameter declaration and definition
 *-----------------------------------------------------------------------------------------
+
+PARAMETER elect_load(SCEN, tt) electricity demand per timestep [kWh_el]
+/
+1A80
+
+$gdxIn gdx/par_ElectCons_P4_1_A80.gdx
+$load elect_load(SCEN, tt) = Econ1A80
+$gdxIn
+
+*1A180(tt)
+*
+*$gdxIn gdx/par_ElectCons_P4_1_A180.gdx
+*$load elect_load = Econ1A180
+*$gdxIn
+*
+*3A80(tt)
+*
+*$gdxIn gdx/par_ElectCons_P4_3_A80.gdx
+*$load elect_load = Econ3A80
+*$gdxIn
+*
+*3A180(tt)
+*
+*$gdxIn gdx/par_ElectCons_P4_3_A180.gdx
+*$load elect_load = Econ3A180
+*$gdxIn
+/
+;
+
 
 PARAMETER elect_load_P4_3_A80(tt) electricity demand per timestep [kWh_el]
 /
@@ -90,7 +121,7 @@ $gdxIn
 /
 ;
 
-PARAMETER heat_load_A80(tt) electricity demand per timestep [kWh_heat]
+PARAMETER heat_load_A80(scen,tt) electricity demand per timestep [kWh_heat]
 /
 $gdxIn gdx/par_HeatCons_A80.gdx
 $load heat_load_A80 = HconA80
@@ -113,6 +144,9 @@ $load spot_price = Espotprice
 $gdxIn
 /
 ;
+
+PARAMETER  big_parm(scen, tt, demand)
+big_parm(scen, tt, demand)$()
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -139,6 +173,20 @@ SCALAR
          taxes_electHeat     taxes electricity for heating [� * (kWh)^(-1)] /0.036/
          taxes_gasCons       taxes gas consumption [� * (kWh)^(-1)] /0.04/
          fees_electNetwork   network costs for electricity consumption [� * (kWh)^(-1)] /0/;
+         
+*PARAMETER el_load(SCEN)           for looping over scenarios
+*/1A80 elect_load_P4_1_A80(tt)
+*1A180 elect_load_P4_1_A180(tt)
+*3A80 lect_load_P4_3_A80(tt)
+*3A180 elect_load_P4_3_A180(tt)/;
+
+*PARAMETER th_load(SCEN)           for looping over scenarios
+*/1A80 heat_load(tt)=heat_load_A80(tt)
+*1A180 heat_load(tt)=heat_load_A180(tt)
+*3A80  heat_load(tt)=heat_load_A80(tt)
+*3A180 heat_load(tt)=heat_load_A180(tt)/;
+
+
 
 PARAMETER  sp(tt)  Electricity Spot prices in per kWh not per MWh;
 sp(tt) = spot_price(tt) / 1000;
@@ -182,6 +230,7 @@ taxes               0.12    0.036        0.04         0              0          
 fees                0       0            0            0              0           0         0;
 
 
+
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Variables declaration
@@ -201,10 +250,33 @@ Variable
 Positive Variable
          x_el_grid(tt) electricity from grid [kWh_el]
          x_th_boil(tt) output of heat boiler [kWh_th]
-         x_el_pv(tt) output of heat PV [kWh_th]
+         x_el_pv(tt) output of electricty PV [kWh_th];
          
 
         
+*-----------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------------------
+* Loop or set declaration for scenarios
+*-----------------------------------------------------------------------------------------
+
+*if(SCEN = "1A80"),             ALIAS(elect_load_P4_1_A80(tt), elect_load(tt));
+*                            ALIAS(heat_load_A80(tt), heat_load(tt));
+*    elseif SCEN = "1A180",    ALIAS(elect_load_P4_1_A180(tt), elect_load(tt));
+*                            ALIAS(heat_load_A180(tt), heat_load(tt));)
+*    elseif SCEN = "3A80",     ALIAS(elect_load_P4_3_A80(tt), elect_load(tt));
+*                            ALIAS(heat_load_A80(tt), heat_load(tt));)
+*    elseif SCEN = "3A180",    ALIAS(elect_load_P4_3_A180(tt), elect_load(tt));
+*                            ALIAS(heat_load_A180(tt), heat_load(tt)););
+
+*if(scenario $ (SCEN = "1A80"),             ALIAS(elect_load_P4_1_A80, elect_load);
+*                            ALIAS(heat_load_A80, heat_load);
+*    elseif SCEN = "1A180",    ALIAS(elect_load_P4_1_A180, elect_load);
+*                            ALIAS(heat_load_A180, heat_load);)
+*    elseif SCEN = "3A80",     ALIAS(elect_load_P4_3_A80, elect_load);
+*                            ALIAS(heat_load_A80, heat_load);)
+*    elseif SCEN = "3A180",    ALIAS(elect_load_P4_3_A180, elect_load);
+*                        
+
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Equations declaration
@@ -220,8 +292,8 @@ costs.. Z =e= sum(isub, capitalCosts(isub))
               + sum((tt,ci), (a(ci, 'Elect') + sp(tt)) * x_el_grid(tt)
               + (a(ci, 'Elect-heat') + sp(tt)) * x_th_boil(tt));
               
-elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_3_A80(tt);
-heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
+elecdemand(tt).. x_el_grid(tt) =g= elect_load_P4_1_A180(tt);
+heatdemand(tt).. x_th_boil(tt) =g= heat_load_A180(tt);
 
 
 
@@ -229,6 +301,17 @@ heatdemand(tt).. x_th_boil(tt) =g= heat_load_A80(tt);
 
 Model energy /all/;
 option mip=cplex;
-solve energy using mip minimizing Z;
-display z.l;
+*solve energy using mip minimizing Z;
+*loop(SCEN,
+*    display SCEN(1)	;
+*display z.l;
 
+
+*-----------------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------------------
+* Loop solve declaration for sens analysis
+*-----------------------------------------------------------------------------------------
+
+
+*FOR(tax = 10 to 20 by 2,
+*    solve energy using mip minimizing Z;);

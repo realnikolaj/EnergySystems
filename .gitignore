@@ -8,4 +8,6 @@
 Reading/
 Assignment2/
 test*
-*.gdx
+*.docx
+*.pages
+~$*
