@@ -1,31 +1,23 @@
 *calling Data parameters and timeset
-$call csv2gdx csv/TimeSeries_dat.csv output=gdx/TimeSeries_dat.gdx          id=dataPar index=2 values=3..9 useHeader=y fieldSep=SemiColon decimalSep=Comma storeZero=y
-*sets i.e time with t0 (tt_0) and time without t0 (tt)
-$call csv2gdx csv/Timesteps.csv output=gdx/timesteps.gdx                        id=time autoCol=col colCount=1 index=1 values=1 trace=0 fieldSep=SemiColon decimalSep=Comma
-**solar radiation data
-$call csv2gdx csv/SolarRadiation.csv output=gdx/par_SolarRadiation.gdx              id=SolarRadiation colCount=2 index=1 values=2 trace=0 useHeader=n fieldSep=SemiColon decimalSep=Comma
+$call csv2gdx csv/TimeSeries_dat.csv output=gdx/TimeSeries_dat.gdx          id=dataPar index=1 values=2,3,4,5,6,7,8,10 useHeader=y fieldSep=SemiColon decimalSep=Comma storeZero=y
+$call csv2gdx csv/TimeSeries_dat.csv output=gdx/agr_TimeSeries.gdx          id=agrTime index=9 useHeader=y fieldSep=SemiColon decimalSep=Comma storeZero=y
 
-*-----------------------------------------------------------------------------------------
-*-----------------------------------------------------------------------------------------
-* Set declaration and definition
-*-----------------------------------------------------------------------------------------
 SETS  t timesteps full year
+      tt Time subset 
       scen house size and income scenarios
     
+
 scen /1A80, 1A180, 3A80, 3A180/;
 
-$gdxIn gdx/TimeSeries_dat.gdx
-$load t  = Dim1
-$gdxIn
-;
 
-ALIAS(t, ts);
-SETS tt(ts) Timesteps subset using the selected weeks
+*$gdxIn gdx/TimeSeries_dat.gdx
+*$load t  = Dim1
+*$gdxIn
+*;
 
-$gdxIn gdx/timesteps.gdx
-$load tt = Dim1
-$gdxIn
-;
+*SET ts(t) timesteps without;
+*ts('tt0') = no
+
 
 PARAMETERS
     dataPar
@@ -34,25 +26,32 @@ PARAMETERS
     spot_price(t)
     solar_rad(t);
     
+$onUndf
 $gdxIn gdx/TimeSeries_dat.gdx
+$load t = Dim1
 $load dataPar
 $gdxIn
 
-$gdxIn gdx/par_SolarRadiation.gdx
-$load solar_rad = SolarRadiation
-$gdxIn
 
+ALIAS(t, ts);
+SETS tt(ts) Timesteps subset using the selected weeks
+
+$gdxIn gdx/agr_TimeSeries.gdx
+$load tt = Dim1
+$gdxIn
+;
 
 elect_load('1A80', t)  = dataPar(t,'el1A80');
 elect_load('1A180',t)  = dataPar(t,'el1A180');
-elect_load('3A80', t)  = dataPar(t,'el3A80');
+elect_load('3A80', t)  = dataPar(t,'el3A180');
 elect_load('3A180',t)  = dataPar(t,'el3A180');
 heat_load('1A80',  t)  = dataPar(t,'thA80');
 heat_load('1A180', t)  = dataPar(t,'thA180');
 heat_load('3A80',  t)  = dataPar(t,'thA80');
 heat_load('3A180', t)  = dataPar(t,'thA180');
 spot_price(t)          = dataPar(t,'SpotPriceEUR');
-solar_rad(t)           = solar_rad(t);
+solar_rad(t)           = dataPar(t,'SolarRad');
+$offUndf
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Set declaration and definition
@@ -189,7 +188,7 @@ Positive Variable
          heatstorage_discharge(t)       heat storage discharge for a given timestep [kWh]
          heatstorage_level(t)           amount of energy stored in the heat storage for any given time step [kWh_el];
 
-battery_charge.fx('tt170') = 1;
+
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
 * Equations declaration
@@ -255,6 +254,8 @@ heatstorage_uplimit(tt).. heatstorage_level(tt)     =l= heatstorage_maxcap;
 heatstorage_climit(tt)..  heatstorage_charge(tt)    =l= heatstorage_maxcap      * heatstorage_charlimit    * bi_tech('Heat-storage');
 heatstorage_dlimit(tt)..  heatstorage_discharge(tt) =l= heatstorage_maxcap      * heatstorage_discharlimit * bi_tech('Heat-storage');
 
+* Defining initial charge of battery
+battery_charge.fx('tt170') = 0
 ******** Custom Edits ************
 
 *capitalCosts('Heat-pump')= 0;
