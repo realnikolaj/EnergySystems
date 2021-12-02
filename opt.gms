@@ -21,8 +21,8 @@ $call csv2gdx csv/TimeSeries_dat.csv output=gdx/agr_TimeSeries.gdx          id=a
 *        equation.. elect_load(scen) =l= ... notice that when using the entire set you must not enter it as a string i.e. dont use the quote ''
 * solve ..... )
 *-----------------------------------------------------------------------------------------
-SETS  t time_steps set for all hours (8760) of the year 2017
-      scen scenarios set for the four different households
+SETS  t         time_steps set for all hours (8760) of the year 2017
+      scen      scenarios set for the four different households
     
 scen /1A80, 1A180, 3A80, 3A180/;
 
@@ -69,7 +69,7 @@ solar_rad(t)           = dataPar(t,'SolarRad');
 $offUndf
 
 * initializes the SET 'i' which holds all available technologies for grid, gas, gen tech and storage tech
-SETS i Set for all technologies
+SETS i        Set for all technologies
 /Elect, Grid-pump, Gas-boiler, Photovoltaic, Heat-pump, Battery, Heat-storage/;
 
 * initializes the SUBSET SET 'isub' which is a subset of 'i' (technologies)
@@ -80,14 +80,15 @@ SETS isub(j)  subset of i (technologies)
 
 * initializes the SET 'ci' for which holds all 'per unit of kWh' parameters
 * used in the objective function
-SETS ci Type of costs for generation
+SETS ci       Type of costs for generation
 /cost, om, taxes, fees/;
 *-----------------------------------------------------------------------------------------
 
 *-----------------------------------------------------------------------------------------
 * Scalar declaration and definitions
-*-----------------------------------------------------------------------------------------
-* TODO: use battery_ll, heatstorage_ll for an hourly linear loss i.e. each timestep
+*
+*
+*
 *-----------------------------------------------------------------------------------------
 SCALAR       
          battery_charef                 battery chaging efficiency [kWhsel * (kWhel)^(-1)] ................. /0.98/
@@ -98,8 +99,7 @@ SCALAR
          battery_depthofdischarge       battery depth of discharge ......................................... /1/
          battery_maxsoc                 battery maximum SOC ................................................ /1/
          
-         heatstorage_capex              heats storage capital cost divided by lifetime  [€ * (kWh)^(-1)] ... /14.07/
-         heatstorage_opex               heats storage operational and maintenance costs [€ * (kWh)^(-1)] ... /0.000883927291391307/
+*         heatstorage_opex               heats storage operational and maintenance costs [€ * (kWh)^(-1)] ... /0.000883927291391307/
          heatstorage_charef             heats storage chaging efficiency [kWhsel * (kWhel)^(-1)] ........... /1/
          heatstorage_discharef          heats storage dischaging efficiency [kWhel * (kWhsel)^(-1)] ........ /1/
          heatstorage_ll                 linear losses % of stored energy lost per hour...................... /0.021/
@@ -127,7 +127,8 @@ SCALAR
 * Parameter 'x_Results'
 *-----------------------------------------------------------------------------------------
 PARAMETER  sp(t)            Electricity Spot prices in per kWh not per MWh;
-sp(t) = spot_price(t) * 1e-3;
+sp(t) = 60 * 1e-3
+*sp(t) = spot_price(t) * 1e-3;
 
 PARAMETER kw(i)             Maximum capacity i.e. size of unit in kW
 /Elect        0
@@ -153,12 +154,13 @@ Heat-storage  14.07/;
 TABLE   a(ci,i)             Table used in the objective function for calculate the per unit kWh running costs of all techs
                             Elect   Grid-pump   Gas-boiler   Photovoltaic   Heat-pump   Battery   Heat-storage           
 cost                        0       0            0.09         0              0           0         0
-om                          0       0.0027       0.0011       0              0.0027      0.0021    0.0007
+om                          0       0.0027       0.0011       0              0.0027      0.0021    0.0008
 taxes                       0.12    0.036        0.04         0              0           0         0
 fees                        0       0            0            0              0           0         0;
 
 Parameter
-        x_Results(i)        Used to display how much [kWh] each technology is used over the selected time_series;
+        x_Results(i)        Used to display how much [kWh] each electricity related technology is used over the selected time_series
+        y_Results(i)        Used to display how much [kWh] each thermally related technology is used over the selected time_series;
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -176,7 +178,6 @@ Parameter
 *-----------------------------------------------------------------------------------------
 Binary Variable
         bi_tech(i)                      Binary decision variables for all techs;
-
 
 Variable
          Z                              Objective function: Investment and runnning energy purchase costs;
@@ -208,6 +209,7 @@ equations
          thTot(t)                 Total produced th from techs at tt (y(i))
          
          PvSOC(t)                 PV utilization
+*         HeatpumpSOC(t)           Heatpump utilization
          
          BatterySOC(t)            Battery utilization
          Batteryclimit(t)         At any given time step the charged energy cannot exceed the charging limit       
@@ -228,28 +230,28 @@ equations
 * Defines upper levels for generation and storage techs
 * Fixes initial levels of battery to model a battery charge level at previous timestep
 * Fixes grid electricity and boiler techs to always available
-x.up(tt,'Photovoltaic')     =  kw('Photovoltaic');
-y.up(tt,'heat-pump')        =  kw('Heat-pump');
-battery_level.up(tt)        =  kw('battery');
-heatstorage_level.up(tt)    =  kw('Heat-storage');
+x.up(t,'Photovoltaic')      =  kw('Photovoltaic');
+y.up(t,'heat-pump')         =  kw('Heat-pump');
+battery_level.up(t)         =  kw('battery');
 battery_level.fx('tt168')   =  30;
+heatstorage_level.up(t)     =  kw('Heat-storage');
 bi_tech.fx('Elect')         =  1;
 bi_tech.fx('Gas-boiler')    =  1;
            
 costs..                 Z  =e= sum(isub,        cap_cost(isub)           * kw(isub)        * bi_tech(isub))
                             +  sum( tt,         sp(tt)                   * (x(tt,'Elect')  + x(tt,'Grid-pump'))) 
-                            +  sum((tt,ci),     sum(isub,a(ci,isub)      * x(tt,isub)));
+                            +  sum((tt,ci),     sum(isub,a(ci,isub)      * (x(tt,isub)     + y(tt,isub))));
 
-elTot(tt)..                 xTot(tt)                  =l=  x(tt,'Elect')          + x(tt,'Photovoltaic')    + battery_discharge(tt) / battery_discharef;
-thTot(tt)..                 yTot(tt)                  =l=  y(tt,'Gas-boiler')     + 2.9 * y(tt,'Grid-pump') + 2.9 * y(tt, 'Heat-pump') + heatstorage_discharge(tt) / heatstorage_discharef;
-elecdemand(tt)..            xTot(tt)                  =g=  elect_load('3A80', tt) + y(tt, 'Heat-pump')      + y(tt, 'Grid-pump')       + battery_charge(tt) / battery_charef ;
-heatdemand(tt)..            yTot(tt)                  =g=  heat_load( '3A80', tt) + heatstorage_charge(tt);   
+elTot(tt)..                 xTot(tt)                  =l=  x(tt,'Elect')            + x(tt,'Photovoltaic')    + battery_discharge(tt) / battery_discharef;
+thTot(tt)..                 yTot(tt)                  =l=  y(tt,'Gas-boiler')       + 2.9 * y(tt,'Grid-pump') + 2.9 * y(tt, 'Heat-pump') + heatstorage_discharge(tt) / heatstorage_discharef;
+elecdemand(tt)..            xTot(tt)                  =g=  elect_load('3A180', tt)  + y(tt, 'Heat-pump')      + y(tt, 'Grid-pump')       + battery_charge(tt) / battery_charef;
+heatdemand(tt)..            yTot(tt)                  =g=  heat_load( '3A180', tt)  + heatstorage_charge(tt)  / heatstorage_charef;   
 
 PvSOC(tt)..                 x(tt,'Photovoltaic')      =l=  solar_rad(tt);
-BatterySOC(tt)..            battery_level(tt)         =e=  battery_level(tt-1)     - (battery_discharge(tt)     + battery_charge(tt)) ;
-Batteryclimit(tt)..         battery_charge(tt)        =l=  kw('battery')           * battery_charglimit;
-Batterydlimit(tt)..         battery_discharge(tt)     =l=  kw('battery')           * battery_discharlimit;
-heatstorageSOC(tt)..        heatstorage_level(tt)     =e=  heatstorage_level(tt-1) - (heatstorage_discharge(tt) + heatstorage_charge(tt));
+BatterySOC(tt)..            battery_level(tt)         =e=  (battery_level(tt-1)     + battery_charge(tt)      - battery_discharge(tt))     * (1 - battery_ll);
+Batteryclimit(tt)..         battery_charge(tt)        =l=  kw('battery')            * battery_charglimit;
+Batterydlimit(tt)..         battery_discharge(tt)     =l=  kw('battery')            * battery_discharlimit;
+heatstorageSOC(tt)..        heatstorage_level(tt)     =e=  (heatstorage_level(tt-1) + heatstorage_charge(tt)  - heatstorage_discharge(tt)) * (1 - heatstorage_ll);
 heatstorage_climit(tt)..    heatstorage_charge(tt)    =l=  kw('Heat-storage');
 heatstorage_dlimit(tt)..    heatstorage_discharge(tt) =l=  kw('Heat-storage');
 
@@ -265,8 +267,9 @@ heatstorage_dlimit(tt)..    heatstorage_discharge(tt) =l=  kw('Heat-storage');
 ******** Solver ***************
 Model energy /all/;
 option mip=cplex;
-solve energy using mip minimizing Z;
+solve energy using rmip minimizing Z;
 
 x_Results(isub) = sum(tt,x.l(tt,isub));
+y_Results(isub) = sum(tt,y.l(tt,isub));
 
-display Z.l,x.l, bi_tech.l, x_Results, battery_charge.l;
+display Z.l, x.l, y.l, bi_tech.l, x_Results, y_Results, battery_charge.l;
