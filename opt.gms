@@ -47,13 +47,13 @@ ALIAS(t, ts);
 SETS tt(ts) aggregate time_step set - a subset of SET 't'
 * uncomment the line below and you can set a test time_subset for a smaller SUBSET ..
 * note that no solar_rad data currently exist for any timesteps other than the SET tt
-* /tt1*tt5/; 
+ /tt7*tt15/; 
 
-$gdxIn gdx/agr_TimeSeries.gdx
-$load tt = Dim1
-$gdxIn
-;
-
+*$gdxIn gdx/agr_TimeSeries.gdx
+*$load tt = Dim1
+*$gdxIn
+*;
+*
 * Collects the data parameters and assigns demands for all the scenarios
 * note the heat_load for scenarios of equal house sizes are identical i.e. heat_load('1A80', t) == heat_load('3A80')
 elect_load('1A80', t)  = dataPar(t,'el1A80');
@@ -92,20 +92,20 @@ SETS ci       Type of costs for generation
 *-----------------------------------------------------------------------------------------
 SCALAR
          n_weeks                        Number of weeks                                                      /4/
-         battery_chargeef                 battery chaging efficiency [kWhsel * (kWhel)^(-1)] ................. /0.98/
-         battery_dischargeef              battery dischaging efficiency [kWhel * (kWhsel)^(-1)] .............. /0.97/
+         battery_chargeef               battery chaging efficiency [kWhsel * (kWhel)^(-1)] ................. /0.98/
+         battery_dischargeef            battery dischaging efficiency [kWhel * (kWhsel)^(-1)] .............. /0.97/
          battery_ll                     linear losses % of stored energy lost per hour ..................... /0.00000173628466837439/
-         battery_chargelimit             battery charging limit ............................................. /0.9/
-         battery_dischargelimit           battery discharging limit .......................................... /0.5/
+         battery_chargelimit            battery charging limit ............................................. /0.9/
+         battery_dischargelimit         battery discharging limit .......................................... /0.5/
          battery_depthofdischarge       battery depth of discharge ......................................... /0.9/
          battery_maxsoc                 battery maximum SOC ................................................ /1/
          
-*         heatstorage_opex               heats storage operational and maintenance costs [€ * (kWh)^(-1)] ... /0.000883927291391307/
-         heatstorage_chargeef             heats storage chaging efficiency [kWhsel * (kWhel)^(-1)] ........... /1/
-         heatstorage_dischargeef          heats storage dischaging efficiency [kWhel * (kWhsel)^(-1)] ........ /1/
+*         heatstorage_opex              heats storage operational and maintenance costs [€ * (kWh)^(-1)] ... /0.000883927291391307/
+         heatstorage_chargeef           heats storage chaging efficiency [kWhsel * (kWhel)^(-1)] ........... /1/
+         heatstorage_dischargeef        heats storage dischaging efficiency [kWhel * (kWhsel)^(-1)] ........ /1/
          heatstorage_ll                 linear losses % of stored energy lost per hour...................... /0.021/
-         heatstorage_chargelimit          heats storage charging limit ....................................... /1/
-         heatstorage_dischargelimit       heats storage discharging limit .................................... /1/
+         heatstorage_chargelimit        heats storage charging limit ....................................... /1/
+         heatstorage_dischargelimit     heats storage discharging limit .................................... /1/
          heatstorage_depthofdischarge   heats storage depth of discharge ................................... /1/
          heatstorage_maxsoc             heats storage maximum SOC .......................................... /1/;
 *-----------------------------------------------------------------------------------------
@@ -135,7 +135,7 @@ PARAMETER kw(i)             Maximum capacity i.e. size of unit in kW
 /Elect        0
 Grid-pump     0
 Gas-boiler    20
-Photovoltaic  0
+Photovoltaic  20
 Heat-pump     18
 Battery       55
 Heat-storage  15/;
@@ -152,7 +152,7 @@ Heat-storage  14.07/;
 
 
 
-TABLE   a(ci,i)             Table used in the objective function for calculate the per unit kWh running costs of all techs
+TABLE   opex(ci,i)             Table used in the objective function for calculate the per unit kWh running costs of all techs
                             Elect   Grid-pump   Gas-boiler   Photovoltaic   Heat-pump   Battery   Heat-storage           
 cost                        0       0            0.09         0              0           0         0
 om                          0       0.0027       0.0011       0              0.0027      0.0021    0.0008
@@ -160,7 +160,7 @@ taxes                       0.12    0.036        0.04         0              0  
 fees                        0       0            0            0              0           0         0;
 
 Parameter
-        x_Results(i)        Used to display how much [kWh] each electricity related technology is used over the selected time_series;
+        x_Results(i)        Used to display how much [kWh] each electricity related technology is used over the selected time_series
 
 *-----------------------------------------------------------------------------------------
 *-----------------------------------------------------------------------------------------
@@ -177,21 +177,21 @@ Parameter
 *
 *-----------------------------------------------------------------------------------------
 Binary Variable
-        bi_tech(i)                      Binary decision variables for all techs;
+         bi_tech(i)                      Binary decision variables for all techs;
 
 Variable
          Z                              Objective function: Investment and runnning energy purchase costs;
          
 Positive Variable
-         pur_elect(t,i)             Decision variables for purchasing electricity from grid
-         pur_boiler(t,i)             Decision variables for purchasing units to grid i.e. only grid
-         pur_pv(t,i)             Decision variables for purchasing units to grid i.e. only grid
-         pur_heatpump(t,i)             Decision variables for purchasing units to grid i.e. only grid
-         pur_battery(t,i)             Decision variables for purchasing units to grid i.e. only grid
-         pur_heatstorage(t,i)             Decision variables for purchasing units to grid i.e. only grid
+         pur_elect(t,i)                 Decision variables for purchasing electricity from grid
+         pur_boiler(t,i)                Decision variables for purchasing units to grid i.e. only grid
+         pur_pv(t,i)                    Decision variables for purchasing units to grid i.e. only grid
+         pur_heatpump(t,i)              Decision variables for purchasing units to grid i.e. only grid
+         pur_battery(t,i)               Decision variables for purchasing units to grid i.e. only grid
+         pur_heatstorage(t,i)           Decision variables for purchasing units to grid i.e. only grid
 
-         elect_(t)                         Variable for mapping pv usage
-         boiler_(t)                         Variable for mapping pv usage
+         elect_(t)                      Variable for mapping pv usage
+         boiler_(t)                     Variable for mapping pv usage
          pv_(t)                         Variable for mapping pv usage
          heatpump_(t)                   Variable to acumulate sources for heatpump
          battery_(t)                    Variable to acumulate sources for battery charges
@@ -223,16 +223,21 @@ equations
          heatpump_sources(t)       Sources that contribute to heatpump
          
          battery(t)               Battery utilization
-         battery_limitsIN(t)
-         battery_limitsOUT(t)
+         battery_limitsIN1(t)
+         battery_limitsOUT1(t)
+*         battery_limitsIN2(t)
+         battery_limitsOUT2(t)
          Battery_sources(t)       Sources that contribute to battery
 *         Batteryclimit(t)         At any given time step the charged energy cannot exceed the charging limit       
 *         Batterydlimit(t)         At any given time step the discharged energy cannot exceed the discharging limit
 
          heatstorage(t)           Heat storage utilization
-         heatstoragelimitsIN(t)
-         heatstoragelimitsOUT(t)
+         heatstoragelimitsIN1(t)
+         heatstoragelimitsOUT1(t)
+*         heatstoragelimitsIN2(t)
+         heatstoragelimitsOUT2(t)
          heatstorage_sources(t)   Source that contribute to heatstorage;
+         
 *         heatstorage_climit(t)    At any given time step the charged energy cannot exceed the charging limit       
 *         heatstorage_dlimit(t)    At any given time step the discharged energy cannot exceed the discharging limit;
 *-----------------------------------------------------------------------------------------
@@ -259,40 +264,43 @@ heatstorage_level.up(t)        =  kw('Heat-storage');
 bi_tech.fx('Elect')         =  1;
 bi_tech.fx('Gas-boiler')    =  1;
            
-costs..                 Z  =e= (52/n_weeks)
-                            *  sum(isub,        cap_cost(isub)           * kw(isub)        * bi_tech(isub))
-                            +  sum( tt,         sp(tt)                   * (pur_elect(tt,'Elect')
+costs..                 Z  =e= sum(isub,        cap_cost(isub)           * kw(isub)        * bi_tech(isub))
+                            +  (8760 / 9)
+                            * sum( tt,         sp(tt)                   * (pur_elect(tt,'Elect')
                                                                          + pur_heatpump(tt,'Grid-pump')
                                                                          + pur_battery(tt, 'Elect')
-                                                                         + pur_heatstorage(tt, 'Grid-pump'))) 
-                            +  sum((tt,ci),     sum(isub,a(ci,isub)      * (pur_elect(tt, isub)
-                                                                          + pur_boiler(tt, isub)
-                                                                          + pur_pv(tt, isub)
-                                                                          + pur_heatpump(tt, isub)
-                                                                          + pur_battery(tt, isub)
-                                                                          + pur_heatstorage(tt, 'Grid-pump'))));
+                                                                         + pur_heatstorage(tt, 'Grid-pump')));
+                                                                         
+*                            +  sum((tt, ci),                            ( opex(ci,'Elect') * (pur_elect(tt, 'Elect')
+*                                                                          + opex(ci,'Gas-boiler') * pur_boiler(tt, 'Gas-boiler')
+*                                                                          + opex(ci,'photovoltaic') * pur_pv(tt, 'Photovoltaic')
+*                                                                          + opex(ci,'Grid-pump') * pur_heatpump(tt, 'Grid-pump')     + opex(ci,'photovoltaic') * pur_heatpump(tt, 'Photovoltaic') + opex(ci,'Battery') pur_heatpump(tt, 'Battery')
+*                                                                          + opex(ci,'Elect') * pur_battery(tt, 'Elect')          +  opex(ci,'photovoltaic') * pur_battery(tt, 'Photovoltaic')
+*                                                                          + opex(ci,'Gas-boiler') * pur_heatstorage(tt, 'Gas-boiler') + opex(ci,'Heat-pump') * pur_heatstorage(tt, 'Heat-pump') + opex(ci,'Grid-pump') * pur_heatstorage(tt, 'Grid-pump')));
                             
-*/Elect (in/out), Grid-pump (out), Gas-boiler (), Photovoltaic, Heat-pump, Battery, Heat-storage/;
+*/Elect , Grid-pump , Gas-boiler, Photovoltaic, Heat-pump, Battery, Heat-storage/;
 
 elecdemand(tt)..             elect_load('3A180',tt)       =l= elect_(tt)  + pv_(tt) + battery_discharge(tt) * battery_dischargeef;
 heatdemand(tt)..             heat_load('3A180', tt)       =l= boiler_(tt) + heatpump_(tt) + heatstorage_discharge(tt) * heatstorage_dischargeef;
 
 
-Battery(tt)..               battery_level(tt)         =g=  (battery_level(tt-1)     - battery_discharge(tt)      + battery_charge(tt)  * battery_chargeef)     * (1 - battery_ll);
+Battery(tt)..               battery_level(tt)         =g=  (battery_level(tt-1)     - (battery_discharge(tt) + pur_heatpump(tt, 'battery'))     + battery_charge(tt)  * battery_chargeef)     * (1 - battery_ll);
 Heatstorage(tt)..           heatstorage_level(tt)     =g=  (heatstorage_level(tt-1) - heatstorage_discharge(tt)  + heatstorage_charge(tt) * heatstorage_chargeef) * (1 - heatstorage_ll);
 
-elect_sources(tt)..              elect_(tt)           =l=  pur_elect(tt, 'Elect');
-boiler_sources(tt)..             boiler_(tt)          =l=  pur_boiler(tt, 'Gas-boiler');
-pv_sources(tt)..                 pv_(tt)              =l=  pur_pv(tt, 'Photovoltaic');
-Heatpump_sources(tt)..           heatpump_(tt)        =l=  pur_heatpump(tt, 'Grid-pump') + pur_heatpump(tt, 'Heat-pump')    + pur_heatpump(tt, 'Photovoltaic') + pur_heatpump(tt, 'Battery');
-Battery_sources(tt)..            battery_charge(tt)         =l=  pur_battery(tt, 'Elect')     + pur_battery(tt, 'Photovoltaic');
-Heatstorage_sources(tt)..        heatstorage_charge(tt)     =l=  pur_heatstorage(tt, 'Grid-pump') + pur_heatstorage(tt, 'Photovoltaic') + pur_heatstorage(tt, 'Battery');
+elect_sources(tt)..              elect_(tt)                 =l=  pur_elect(tt, 'Elect');
+boiler_sources(tt)..             boiler_(tt)                =l=  pur_boiler(tt, 'Gas-boiler');
+pv_sources(tt)..                 pv_(tt)                    =l=  pur_pv(tt, 'Photovoltaic');
+Heatpump_sources(tt)..           heatpump_(tt)              =l=  pur_heatpump(tt, 'Grid-pump')     + pur_heatpump(tt, 'Photovoltaic') + pur_heatpump(tt, 'Battery');
+Battery_sources(tt)..            battery_charge(tt)         =l=  pur_battery(tt, 'Elect')          + pur_battery(tt, 'Photovoltaic');
+Heatstorage_sources(tt)..        heatstorage_charge(tt)     =l=  pur_heatstorage(tt, 'Gas-boiler') + pur_heatstorage(tt, 'Heat-pump') + pur_heatstorage(tt, 'Grid-pump');
 
-pv_limits(tt)..                 min(solar_rad(tt), kw('photovoltaic'))    =g= pur_pv(tt, 'photovoltaic') + pur_heatpump(tt, 'photovoltaic') + pur_battery(tt, 'photovoltaic') + pur_heatstorage(tt, 'photovoltaic');
-battery_limitsOUT(tt)..           kw('battery') * battery_dischargelimit =g= battery_discharge(tt);
-battery_limitsIN(tt)..            kw('battery') * battery_chargelimit    =g= battery_charge(tt);
-heatstoragelimitsOUT(tt)..        kw('heat-storage') * heatstorage_dischargelimit =g= heatstorage_discharge(tt);
-heatstoragelimitsIN(tt)..         kw('heat-storage') * heatstorage_chargelimit    =g= heatstorage_charge(tt);
+pv_limits(tt)..                   min(solar_rad(tt), kw('photovoltaic'))  * bi_tech('photovoltaic')         =g= pur_pv(tt, 'photovoltaic') + pur_heatpump(tt, 'photovoltaic') + pur_battery(tt, 'photovoltaic');
+battery_limitsOUT1(tt)..          (kw('battery') * battery_dischargelimit) * bi_tech('battery')          =g= battery_discharge(tt);
+battery_limitsOUT2(tt)..          battery_level(tt)                              =g= battery_discharge(tt);
+battery_limitsIN1(tt)..           (kw('battery') * battery_chargelimit) * bi_tech('battery')             =g= battery_charge(tt);
+heatstoragelimitsOUT1(tt)..       (kw('heat-storage') * heatstorage_dischargelimit) * bi_tech('heat-storage') =g= heatstorage_discharge(tt);
+heatstoragelimitsOUT2(tt)..       heatstorage_level(tt)                    =g= heatstorage_discharge(tt);
+heatstoragelimitsIN1(tt)..        (kw('heat-storage') * heatstorage_chargelimit) * bi_tech('heat-storage')    =g= heatstorage_charge(tt);
 
 *pv_.fx(tt)$(bi_tech.l('photovoltaic') = 0) = 0;
 *heatpump_.fx(tt)$(bi_tech.l('heat-pump') = 0) = 0;
